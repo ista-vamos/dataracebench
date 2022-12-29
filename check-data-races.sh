@@ -68,6 +68,7 @@ help () {
     echo "--coderrect : compile and test all benchmarks with Coderrect Scanner"
     echo "--inspector : compile and test all benchmarks with Intel Inspector"
     echo "--romp      : compile and test all benchmarks with Romp"
+    echo "--vamos     : compile and test all benchmarks with Vamos"
     echo "--llov    : compile and test all benchmarks with LLVM OpenMP Verifier (LLOVE)"
     echo "--customize : compile and test customized test list and tools"
     echo
@@ -110,6 +111,7 @@ if [[ "$OPTION" == "--small" ]]; then
   scripts/test-harness.sh -t 3 -n 2 -d 32 -l $LANGUAGE -x tsan-clang
   scripts/test-harness.sh -t 3 -n 2 -d 32 -l $LANGUAGE -x inspector-max-resources
   scripts/test-harness.sh -t 3 -n 2 -d 32 -l $LANGUAGE -x romp
+  scripts/test-harness.sh -t 3 -n 2 -d 32 -l $LANGUAGE -x vamos
 fi
 
 if [[ "$OPTION" == "--run" ]]; then
@@ -264,6 +266,10 @@ fi
 
 if [[ "$OPTION" == "--llov" ]]; then
    scripts/test-harness.sh -t 8 -n 5 -d 32 -l  $LANGUAGE -x llov
+fi
+
+if [[ "$OPTION" == "--vamos" ]]; then
+    scripts/test-harness.sh -l $LANGUAGE -x vamos
 fi
 
 if [[ "$OPTION" == "--customize" ]]; then

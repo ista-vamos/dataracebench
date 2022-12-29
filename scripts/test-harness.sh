@@ -113,7 +113,7 @@ usage () {
   echo
   echo "OPTIONS:"
   echo "  -x tool       : Add the specified tool to test set."
-  echo "                  Value can be one of: gnu, clang, intel, helgrind, tsan-clang, tsan-gcc, archer, inspector, inspector-max-resources, romp."
+  echo "                  Value can be one of: gnu, clang, intel, helgrind, tsan-clang, tsan-gcc, archer, inspector, inspector-max-resources, romp, vamos."
   echo "  -n iterations : Run each setting the specified number of iterations."
   echo "  -t threads    : Add the specified number of threads as a testcase."
   echo "  -d size       : Add a specific dataset size to the varlen test suite."
@@ -137,6 +137,7 @@ valid_tool_name () {
     inspector-max-resources) return 0 ;;
     romp) return 0;;   
     llov) return 0;;   
+    vamos) return 0;;   
     *) return 1 ;;
   esac
 }
@@ -224,8 +225,8 @@ done
 
 # Set default values
 if [[ ! ${#TOOLS[@]} -gt 0 ]]; then
-  echo "Default tool set will be used: gnu, clang, intel helgrind, tsan-clang, tsan-gcc, archer, inspector-max-resources."
-  TOOLS=( 'gnu' 'clang' 'intel' 'helgrind' 'tsan-clang' 'tsan-gcc' 'archer' 'inspector-max-resources' )
+  echo "Default tool set will be used: gnu, clang, intel helgrind, tsan-clang, tsan-gcc, archer, inspector-max-resources, vamos."
+  TOOLS=( 'gnu' 'clang' 'intel' 'helgrind' 'tsan-clang' 'tsan-gcc' 'archer' 'inspector-max-resources' 'vamos' )
 else
   echo "Tools: ${TOOLS[*]}";
 fi
@@ -341,6 +342,7 @@ for tool in "${TOOLS[@]}"; do
     echo "$test has $testname and ID=$id"
 
     # Compile
+    tmpname="$EXEC_DIR/$(basename "$test").$tool.tmp.out"
     exname="$EXEC_DIR/$(basename "$test").$tool.out"
     rompexec="$exname.inst"
     compilelog="$LOG_DIR/$(basename "$test").$tool.${ITER}_comp.log"
@@ -363,6 +365,7 @@ for tool in "${TOOLS[@]}"; do
         tsan-gcc)   g++ $TSAN_COMPILE_FLAGS $additional_compile_flags $test -o $exname -lm ;;
         llov)       $LLOV_COMPILER/bin/clang++ $LLOV_COMPILE_FLAGS $additional_compile_flags $test -o $exname -lm 2> $compilelog;;
         inspector)  icpc $ICPC_COMPILE_FLAGS $additional_compile_flags $test -o $exname -lm ;;
+        vamos)      $VAMOS_DIR/sources/tsan/compile.py -cc clang++ $test -o $exname $additional_compile_flags;;
         romp)       g++ $ROMP_CPP_COMPILE_FLAGS $additional_compile_flags $test -o $exname -lm;
                     echo $exname
                     InstrumentMain --program=$exname;
@@ -379,6 +382,7 @@ for tool in "${TOOLS[@]}"; do
         tsan-gcc)   gcc $TSAN_COMPILE_FLAGS $additional_compile_flags $test -o $exname -lm ;;
         llov)       $LLOV_COMPILER/bin/clang $LLOV_COMPILE_FLAGS $additional_compile_flags $test -o $exname -lm 2> $compilelog;;
         inspector)  icc $ICC_COMPILE_FLAGS $additional_compile_flags $test -o $exname -lm ;;
+        vamos)      $VAMOS_DIR/sources/tsan/compile.py -cc clang $test -o $exname $additional_compile_flags;;
         romp)       gcc $ROMP_C_COMPILE_FLAGS $additional_compile_flags $test -o $exname -lm;
                     echo $exname
                     InstrumentMain --program=$exname;
@@ -478,6 +482,15 @@ for tool in "${TOOLS[@]}"; do
                 $INSPECTOR -report problems -result-dir $INSPECTOR_LOG_DIR/$inspectorLogDir-$ITER -report-output $INSPECTOR_LOG_DIR/$logname
 #                races=$(grep 'Data race' tmp.log | sed -E 's/[[:space:]]*([[:digit:]]+).*/\1/');
                 races=$(grep -E '^P[0-9]+' $INSPECTOR_LOG_DIR/$logname  | wc -l)
+                cat tmp.log >> "$LOG_DIR/$logname" || >tmp.log ;;
+              vamos)
+                $TIMEOUTCMD $TIMEOUTMIN"m" $MEMCHECK -f "%M" -o "$MEMLOG" env "./$exname" $size &>exe.tmp.log &
+		exepid=$!
+		$VAMOS_DIR/experiments/dataraces/monitor Program:generic:/vrd &> tmp.log
+		wait $exepid
+                check_return_code $?;
+		echo "$testname return $testreturn"
+                races=$(grep -ce 'Found data race:' tmp.log)
                 cat tmp.log >> "$LOG_DIR/$logname" || >tmp.log ;;
               romp)
                 $TIMEOUTCMD $TIMEOUTMIN"m" $MEMCHECK -f "%M" -o "$MEMLOG" "./$rompexec" $size &> tmp.log;
