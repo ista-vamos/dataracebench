@@ -484,6 +484,7 @@ for tool in "${TOOLS[@]}"; do
                 races=$(grep -E '^P[0-9]+' $INSPECTOR_LOG_DIR/$logname  | wc -l)
                 cat tmp.log >> "$LOG_DIR/$logname" || >tmp.log ;;
               vamos)
+		rm -f /dev/shm/vrd*
                 $TIMEOUTCMD $TIMEOUTMIN"m" $MEMCHECK -f "%M" -o "$MEMLOG" env "./$exname" $size &>exe.tmp.log &
 		exepid=$!
 		$VAMOS_DIR/experiments/dataraces/monitor Program:generic:/vrd &> tmp.log
